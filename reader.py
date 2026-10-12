@@ -2,8 +2,6 @@ from dataclasses import dataclass, field
 from io import BufferedReader
 import logging
 
-import numpy as np
-import numpy.typing as npt
 from mathutils import Matrix
 
 from .binary_reader import BinaryReader
@@ -21,8 +19,8 @@ class Entry:
 class ListEntry(Entry):
     total_size: int = 0
     size: int = 0
-    list_type: str = ""
-    child_entries: list[Entry] = field(default_factory=list)
+    element_type: str = ""
+    elements: list[Entry] = field(default_factory=list)
 
 
 @dataclass
@@ -43,27 +41,29 @@ class GeometryEntry(Entry): ...
 
 @dataclass
 class GEEntry(Entry):
-    vertex_count: int
-    tri_count: int
+    vertex_count: int = 0
+    tri_count: int = 0
 
 
 @dataclass
 class GEBufferEntry(Entry):
-    buffer: npt.NDArray
+    data: bytes
 
 
 def read_entry(bs: BinaryReader) -> Entry:
+    start_off = bs.tell()
     tag = bs.read_string(4)
     size = bs.read_uint32()
     end_off = bs.tell() + size
-    logger.debug("Reading entry %s of size %u at 0x%X", tag, size, bs.tell() - 8)
+    logger.debug("Reading entry %s of size %u at 0x%X", tag, size, start_off)
 
     match tag:
         case "LIST":
             entry = ListEntry(tag, size)
-            entry.list_type = bs.read_string(4)
+            entry.element_type = bs.read_string(4)
             while bs.tell() < end_off:
-                entry.child_entries.append(read_entry(bs))
+                entry.elements.append(read_entry(bs))
+            logger.debug("Reached end of %s list (0x%X - 0x%X)", entry.element_type, start_off, end_off)
 
         case "NoHe":
             entry = NodeEntry(tag, size)
@@ -76,10 +76,6 @@ def read_entry(bs: BinaryReader) -> Entry:
             bs.read_int32()
             bs.read_int32()
             bs.read_int16()
-
-        case "Node":
-            # Data is in previous NoHe entry
-            entry = Entry(tag, size)
 
         case "Mesh":
             entry = MeshEntry(tag, size)
@@ -112,48 +108,21 @@ def read_entry(bs: BinaryReader) -> Entry:
             bs.read_uint8()
 
         case "SuGe":
+            entry = GEEntry(tag, size)
             bs.read_int16()
-            vertex_count = bs.read_uint32()
-            tri_count = bs.read_uint32()
+            entry.vertex_count = bs.read_uint32()
+            entry.tri_count = bs.read_uint32()
             bs.read_int16()
-            while True:
-                entry = read_entry(bs)
 
-        case "vpos":
-            entry = GEBufferEntry(
-                tag, size, np.frombuffer(bs.read(size), "<f4").reshape(-1, 3)
-            )
-        case "vski":
-            entry = GEBufferEntry(
-                tag, size, np.frombuffer(bs.read(size), "<u4").reshape(-1, 2)
-            )
-        case "vnor":
-            # Needs to be unpacked somehow
-            entry = GEBufferEntry(
-                tag, size, np.frombuffer(bs.read(size), "<u4").reshape(-1, 2)
-            )
-        case "vtan":
-            entry = GEBufferEntry(tag, size, np.frombuffer(bs.read(size), "<u4"))
-        case "vuvs":
-            entry = GEBufferEntry(
-                tag, size, np.frombuffer(bs.read(size), "<u4").reshape(-1, 2)
-            )
-        case "vcol":
-            entry = GEBufferEntry(
-                tag, size, np.frombuffer(bs.read(size), "<u1").reshape(-1, 4)
-            )
-        case "indx":
-            # Read triangle indices
-            entry = GEBufferEntry(
-                tag, size, np.frombuffer(bs.read(size), "<u2").reshape(-1, 3)
-            )
-        case "EndG":
-            # Marks the end of a GE buffer list
+        case "vpos" | "vski" | "vnor" | "vtan" | "vuvs" | "vcol" | "indx":
+            entry = GEBufferEntry(tag, size, bs.read(size))
+
+        case "EndG" | "Node":
             entry = Entry(tag, size)
+
         case _:
-            raise NotImplementedError(
-                f"Unimplemented entry tag {tag} at {bs.tell() - 8}"
-            )
+            logger.warning("Skipping unimplemented tag %s at 0x%X", tag, start_off)
+            entry = Entry(tag, size)
 
     bs.seek(end_off)
     return entry
