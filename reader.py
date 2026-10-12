@@ -46,8 +46,25 @@ class GEEntry(Entry):
 
 
 @dataclass
+class Bone:
+    name: str = ""
+    transform: Matrix = Matrix()
+
+
+@dataclass
+class SkinMesh:
+    name: str = ""
+    bones: list[Bone] = field(default_factory=list)
+
+
+@dataclass
 class GEBufferEntry(Entry):
     data: bytes
+
+
+@dataclass
+class SkinEntry(Entry):
+    skin_meshes: list[SkinMesh] = field(default_factory=list)
 
 
 def read_entry(bs: BinaryReader) -> Entry:
@@ -63,7 +80,12 @@ def read_entry(bs: BinaryReader) -> Entry:
             entry.element_type = bs.read_string(4)
             while bs.tell() < end_off:
                 entry.elements.append(read_entry(bs))
-            logger.debug("Reached end of %s list (0x%X - 0x%X)", entry.element_type, start_off, end_off)
+            logger.debug(
+                "Reached end of %s list (0x%X - 0x%X)",
+                entry.element_type,
+                start_off,
+                end_off,
+            )
 
         case "NoHe":
             entry = NodeEntry(tag, size)
@@ -119,6 +141,30 @@ def read_entry(bs: BinaryReader) -> Entry:
 
         case "EndG" | "Node":
             entry = Entry(tag, size)
+
+        case "Skin":
+            entry = SkinEntry(tag, size)
+            bs.read_int16()
+            skin_mesh_count = bs.read_uint32()
+            for _ in range(skin_mesh_count):
+                skin_mesh = SkinMesh()
+                bs.read_int16()
+                name_len = bs.read_uint32()
+                skin_mesh.name = bs.read_string(name_len)
+                bs.read_int32()
+                bs.read_int32()
+                bone_count = bs.read_uint32()
+                for _ in range(bone_count):
+                    bone = Bone()
+                    bs.read_int16()
+                    name_len = bs.read_uint32()
+                    bone.name = bs.read_string(name_len)
+                    bone.transform = bs.read_matrix_4x4()
+                    skin_mesh.bones.append(bone)
+                    bs.read_int16()
+                entry.skin_meshes.append(skin_mesh)
+                bs.read_int16()
+            bs.read_int16()
 
         case _:
             logger.warning("Skipping unimplemented tag %s at 0x%X", tag, start_off)
