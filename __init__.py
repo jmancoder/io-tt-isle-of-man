@@ -9,6 +9,7 @@ bl_info = {
 }
 
 
+import logging
 from pathlib import Path
 
 import bpy
@@ -17,6 +18,14 @@ from bpy.props import FloatProperty, StringProperty
 from bpy.types import Operator, Context
 
 from . import reader
+
+# Set up logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+handler = logging.StreamHandler()
+handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
+logger.addHandler(handler)
+logger.propagate = False
 
 
 class IMPORT_OT_SCENE_p3d(Operator, ImportHelper):

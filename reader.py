@@ -8,6 +8,8 @@ from mathutils import Matrix
 
 from .binary_reader import BinaryReader
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class Entry:
@@ -54,7 +56,7 @@ def read_entry(bs: BinaryReader) -> Entry:
     tag = bs.read_string(4)
     size = bs.read_uint32()
     end_off = bs.tell() + size
-    print("Reading %s entry of size %u at %x", tag, size, bs.tell() - 8)
+    logger.debug("Reading entry %s of size %u at 0x%X", tag, size, bs.tell() - 8)
 
     match tag:
         case "LIST":
