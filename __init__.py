@@ -3,7 +3,7 @@ bl_info = {
     "author": "AUTHOR_NAME",
     "description": "",
     "blender": (2, 80, 0),
-    "version": (0, 0, 1),
+    "version": (0, 1, 0),
     "location": "File > Import",
     "category": "Import-Export",
 }
