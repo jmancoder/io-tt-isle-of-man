@@ -24,7 +24,7 @@ class ListEntry(Entry):
 
 
 @dataclass
-class NodeEntry(Entry):
+class NodeHeEntry(Entry):
     name: str = ""
     transform: Matrix = Matrix()
 
@@ -88,9 +88,9 @@ def read_entry(bs: BinaryReader) -> Entry:
             )
 
         case "NoHe":
-            entry = NodeEntry(tag, size)
+            entry = NodeHeEntry(tag, size)
             bs.read_int16()
-            name_len = bs.read_uint16()
+            name_len = bs.read_uint32()
             entry.name = bs.read_string(name_len)
             bs.read_int16()
             entry.transform = bs.read_matrix_4x4()
@@ -174,7 +174,7 @@ def read_entry(bs: BinaryReader) -> Entry:
     return entry
 
 
-def read_file(f: BufferedReader) -> None:
+def read_file(f: BufferedReader) -> list[Entry]:
     bs = BinaryReader(f.read())
 
     # Read file header
@@ -205,3 +205,4 @@ def read_file(f: BufferedReader) -> None:
     entries: list[Entry] = []
     while bs.tell() < file_size:
         entries.append(read_entry(bs))
+    return entries

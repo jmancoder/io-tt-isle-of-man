@@ -17,7 +17,7 @@ from bpy_extras.io_utils import ImportHelper
 from bpy.props import FloatProperty, StringProperty
 from bpy.types import Operator, Context
 
-from . import reader
+from . import reader, importer
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -52,7 +52,8 @@ class IMPORT_OT_SCENE_p3d(Operator, ImportHelper):
     def execute(self, context: Context):
         in_path = Path(self.filepath)
         with open(in_path, "rb") as f:
-            reader.read_file(f)
+            entries = reader.read_file(f)
+        importer.import_scene(context, entries)
         return {"FINISHED"}
 
 
