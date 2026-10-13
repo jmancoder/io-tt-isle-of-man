@@ -66,24 +66,6 @@ def import_list(context: Context, list_entry: reader.ListEntry) -> None:
                 return
             import_list(context, ge_list_entry)
 
-        case "GeLi":
-            # Import geometry list
-            geom_entry = cast(reader.GeometryEntry, list_entry.elements[0])
-            ge_list_entry = cast(reader.ListEntry, list_entry.elements[1])
-            if geom_entry.tag != "Geom":
-                logger.error(
-                    "Expected Geom tag on first geometry list element; got %s",
-                    geom_entry.tag,
-                )
-                return
-            if ge_list_entry.tag != "LIST":
-                logger.error(
-                    "Expected LIST tag on second geometry list element; got %s",
-                    ge_list_entry.tag,
-                )
-                return
-            import_list(context, ge_list_entry)
-
         case "SGLi":
             # Import geometry list
             ge_entry = cast(reader.GEEntry, list_entry.elements[0])
