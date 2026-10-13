@@ -17,8 +17,6 @@ class Entry:
 
 @dataclass
 class ListEntry(Entry):
-    total_size: int = 0
-    size: int = 0
     element_type: str = ""
     elements: list[Entry] = field(default_factory=list)
 
@@ -27,6 +25,7 @@ class ListEntry(Entry):
 class NodeHeEntry(Entry):
     name: str = ""
     transform: Matrix = Matrix()
+    child_count: int = 0
 
 
 @dataclass
@@ -94,10 +93,10 @@ def read_entry(bs: BinaryReader) -> Entry:
             entry.name = bs.read_string(name_len)
             bs.read_int16()
             entry.transform = bs.read_matrix_4x4()
-            bs.read_int16()
+            sentinel = bs.read_int16()
             bs.read_int32()
-            bs.read_int32()
-            bs.read_int16()
+            entry.child_count = bs.read_int32()
+            sentinel = bs.read_int16()
 
         case "Mesh":
             entry = MeshEntry(tag, size)
@@ -153,6 +152,7 @@ def read_entry(bs: BinaryReader) -> Entry:
                 skin_mesh.name = bs.read_string(name_len)
                 bs.read_int32()
                 bs.read_int32()
+
                 bone_count = bs.read_uint32()
                 for _ in range(bone_count):
                     bone = Bone()
@@ -162,6 +162,7 @@ def read_entry(bs: BinaryReader) -> Entry:
                     bone.transform = bs.read_matrix_4x4()
                     skin_mesh.bones.append(bone)
                     bs.read_int16()
+
                 entry.skin_meshes.append(skin_mesh)
                 bs.read_int16()
             bs.read_int16()
