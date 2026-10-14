@@ -48,16 +48,22 @@ class Importer:
                 case "vuvs":
                     stride = len(buffer.data) // ge_entry.vertex_count
                     if stride == 8:
-                        uvs = np.frombuffer(
-                            buffer.data, "<u2", ge_entry.vertex_count * 4
-                        ).astype("<f4") / 4096.0
+                        uvs = (
+                            np.frombuffer(
+                                buffer.data, "<u2", ge_entry.vertex_count * 4
+                            ).astype("<f4")
+                            / 4096.0
+                        )
                         uvs = uvs.reshape(-1, 4)
                         alt_uvs = uvs = uvs[:, 2:]
                         uvs = uvs[:, :2]
                     elif stride == 4:
-                        uvs = np.frombuffer(
-                            buffer.data, "<u2", ge_entry.vertex_count * 2
-                        ).astype("<f4") / 4096.0
+                        uvs = (
+                            np.frombuffer(
+                                buffer.data, "<u2", ge_entry.vertex_count * 2
+                            ).astype("<f4")
+                            / 4096.0
+                        )
                         uvs = uvs.reshape(-1, 2)
                     else:
                         logger.error("Unexpected vuvs buffer stride %d", stride)
@@ -208,14 +214,14 @@ class Importer:
                         )
                     ]
                 )
-                self.import_image(cast(reader.BufferEntry, pixel_buf))
+                self.import_image(pixel_buf)
 
             case _:
                 logger.warning(
                     "Skipping unimplemented list type %s", list_entry.element_type
                 )
 
-    def import_scene(self, entries: list[reader.Entry], name: str) -> None:
+    def import_root_entries(self, entries: list[reader.Entry], name: str) -> None:
         self.scene_name = name
         self.header_entry = cast(reader.HeaderEntry, entries[0])
         for i in range(1, len(entries)):
