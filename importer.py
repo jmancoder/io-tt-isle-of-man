@@ -12,19 +12,23 @@ logger = logging.getLogger(__name__)
 
 
 class Importer:
-    def __init__(self, context: Context) -> None:
+    def __init__(self, context: Context, bone_length: int) -> None:
         self.context = context
         self.header_entry: reader.HeaderEntry
         self.scene_name: str = ""
+        self.bone_length = bone_length
 
     def import_empty(
         self, node_entry: reader.NodeHeEntry, parent_obj: Object | None
     ) -> Object:
-        node_obj = bpy.data.objects.new(node_entry.name, None)
-        node_obj.empty_display_size = 0.1
+        node_obj = bpy.data.objects.get(node_entry.name)
+        if node_obj is None:
+            node_obj = bpy.data.objects.new(node_entry.name, None)
+            node_obj.empty_display_size = 0.1
+            self.context.collection.objects.link(node_obj)
+
         node_obj.parent = parent_obj
         node_obj.matrix_basis = node_entry.transform
-        self.context.collection.objects.link(node_obj)
         return node_obj
 
     def import_mesh(
@@ -137,11 +141,35 @@ class Importer:
                 case _:
                     logger.warning("Skipping %s entry in node list", entry.tag)
 
+    def import_armatures(self, skin_entry: reader.SkinEntry) -> None:
+        if skin_entry.tag != "Skin":
+            raise TypeError(
+                "Expected Skin tag on SkinEntry object; got %s", skin_entry.tag
+            )
+
+        for skin_mesh in skin_entry.skin_meshes:
+            armature = bpy.data.armatures.new(skin_mesh.name)
+            armature_obj = bpy.data.objects.new(skin_mesh.name, armature)
+            self.context.collection.objects.link(armature_obj)
+            self.context.view_layer.objects.active = armature_obj
+
+            bpy.ops.object.mode_set(mode="EDIT")
+            for bone_data in skin_mesh.bones:
+                bone = armature.edit_bones.new(bone_data.name)
+                bone.length = self.bone_length
+                bone.matrix = bone_data.transform.inverted()
+            bpy.ops.object.mode_set(mode="OBJECT")
+
     def import_list(
         self,
         list_entry: reader.ListEntry,
         parent_obj: Object | None,
     ) -> None:
+        if list_entry.tag != "LIST":
+            raise TypeError(
+                "Expected LIST tag on ListEntry object; got %s", list_entry.tag
+            )
+
         match list_entry.element_type:
             case "Nods":
                 self.import_nods(list_entry, parent_obj)
@@ -224,10 +252,18 @@ class Importer:
     def import_root_entries(self, entries: list[reader.Entry], name: str) -> None:
         self.scene_name = name
         self.header_entry = cast(reader.HeaderEntry, entries[0])
-        for i in range(1, len(entries)):
-            entry = entries[i]
-            if entry.tag == "LIST":
-                self.import_list(
-                    cast(reader.ListEntry, entry),
-                    None,
-                )
+        if type(self.header_entry) is reader.PATXHeaderEntry:
+            # Import PTX texture(s)
+            for i in range(1, len(entries)):
+                entry = entries[i]
+                if entry.tag == "LIST":
+                    self.import_list(
+                        cast(reader.ListEntry, entry),
+                        None,
+                    )
+                else:
+                    logger.warning("Skipping entry of type %s in PATX root", entry.tag)
+        else:
+            # Import P3D scene
+            self.import_armatures(cast(reader.SkinEntry, entries[2]))
+            self.import_list(cast(reader.ListEntry, entries[1]), None)

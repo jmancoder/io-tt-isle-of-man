@@ -55,7 +55,7 @@ class IMPORT_OT_SCENE_p3d(Operator, ImportHelper):
         with open(in_path, "rb") as f:
             entries = reader.read_file(f)
 
-        data_importer = Importer(context)
+        data_importer = Importer(context, self.bone_length)
         data_importer.import_root_entries(entries, in_path.stem)
         return {"FINISHED"}
 
