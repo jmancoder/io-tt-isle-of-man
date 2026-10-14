@@ -6,3 +6,9 @@ A Blender add-on for importing P3D files from TT Isle Of Man: Ride on the Edge 3
 2. In Blender, click *File->Import->TT Isle of Man (.p3d)*.
 3. Select the P3D file you wish to import.
 4. Click *Import P3D*.
+
+## Credits
+- texture2ddecoder (wheels are bundled with add-on releases)
+    - License: MIT
+    - Source code: https://github.com/K0lb3/texture2ddecoder
+    - Package: https://pypi.org/project/texture2ddecoder/

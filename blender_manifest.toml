@@ -2,11 +2,21 @@ schema_version = "1.0.0"
 id = "io_tt_isle_of_man"
 version = "0.1.0"
 name = "Import-Export TT Isle Of Man"
-tagline = "Import and export P3D models and PTX textures from TT Isle Of Man: Ride on the Edge 3"
+tagline = "Import P3D and PTX files from TT Isle Of Man: Ride on the Edge 3"
 maintainer = "jmancoder"
 type = "add-on"
 tags = ["Import-Export", "Scene", "Mesh"]
 blender_version_min = "4.2.0"
 license = [
   "SPDX:GPL-3.0-or-later",
+]
+platforms = [
+  "windows-x64",
+  "macos-arm64",
+  "linux-x64"
+]
+wheels = [
+  "./wheels/texture2ddecoder-1.0.6-cp311-abi3-win_amd64.whl",
+  "./wheels/texture2ddecoder-1.0.6-cp311-abi3-macosx_11_0_arm64.whl",
+  "./wheels/texture2ddecoder-1.0.6-cp311-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
 ]
