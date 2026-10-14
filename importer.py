@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 class Importer:
     def __init__(self, context: Context, bone_length: int) -> None:
         self.context = context
+        self.armature_map: dict[str, Object] = {}
         self.header_entry: reader.HeaderEntry
         self.scene_name: str = ""
         self.bone_length = bone_length
@@ -21,7 +22,8 @@ class Importer:
     def import_empty(
         self, node_entry: reader.NodeHeEntry, parent_obj: Object | None
     ) -> Object:
-        node_obj = bpy.data.objects.get(node_entry.name)
+        # Use existing armature if possible, else create an empty object
+        node_obj = self.armature_map.get(node_entry.name)
         if node_obj is None:
             node_obj = bpy.data.objects.new(node_entry.name, None)
             node_obj.empty_display_size = 0.1
@@ -151,6 +153,7 @@ class Importer:
             armature = bpy.data.armatures.new(skin_mesh.name)
             armature_obj = bpy.data.objects.new(skin_mesh.name, armature)
             self.context.collection.objects.link(armature_obj)
+            self.armature_map[skin_mesh.name] = armature_obj
             self.context.view_layer.objects.active = armature_obj
 
             bpy.ops.object.mode_set(mode="EDIT")
