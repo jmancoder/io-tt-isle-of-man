@@ -17,7 +17,8 @@ from bpy_extras.io_utils import ImportHelper
 from bpy.props import FloatProperty, StringProperty
 from bpy.types import Operator, Context
 
-from . import reader, importer
+from . import reader
+from .importer import Importer
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -29,14 +30,14 @@ logger.propagate = False
 
 
 class IMPORT_OT_SCENE_p3d(Operator, ImportHelper):
-    """Load a P3D file."""
+    """Load a P3D/PTX file."""
 
-    bl_idname = "import_scene.p3d"
-    bl_label = "Import P3D"
-    filename_ext = ".p3d"
+    bl_idname = "import_scene.p3d_ptx"
+    bl_label = "Import P3D/PTX"
+    filename_ext = ".p3d;.ptx"
 
     filter_glob: StringProperty(
-        default="*.p3d",
+        default="*.p3d;*.ptx",
         options={"HIDDEN"},
         maxlen=255,
     )
@@ -53,12 +54,16 @@ class IMPORT_OT_SCENE_p3d(Operator, ImportHelper):
         in_path = Path(self.filepath)
         with open(in_path, "rb") as f:
             entries = reader.read_file(f)
-        importer.import_scene(context, entries)
+
+        data_importer = Importer(context)
+        data_importer.import_scene(entries, in_path.stem)
         return {"FINISHED"}
 
 
 def menu_func_import(self, context):
-    self.layout.operator(IMPORT_OT_SCENE_p3d.bl_idname, text="TT Isle of Man (.p3d)")
+    self.layout.operator(
+        IMPORT_OT_SCENE_p3d.bl_idname, text="TT Isle of Man (.p3d/.ptx)"
+    )
 
 
 def register():

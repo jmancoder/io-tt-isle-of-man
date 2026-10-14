@@ -16,6 +16,19 @@ class Entry:
 
 
 @dataclass
+class HeaderEntry(Entry):
+    platform: str = "PC"
+
+
+@dataclass
+class PATXHeaderEntry(HeaderEntry):
+    pixel_format: str = "DXT1"
+    width: int = 1
+    height: int = 1
+    level_count: int = 0
+
+
+@dataclass
 class ListEntry(Entry):
     element_type: str = ""
     elements: list[Entry] = field(default_factory=list)
@@ -57,7 +70,7 @@ class SkinMesh:
 
 
 @dataclass
-class GEBufferEntry(Entry):
+class BufferEntry(Entry):
     data: bytes
 
 
@@ -74,6 +87,36 @@ def read_entry(bs: BinaryReader) -> Entry:
     logger.debug("Reading entry %s of size %u at 0x%X", tag, size, start_off)
 
     match tag:
+        case "Head":
+            file_type = bs.read_string(8)
+            if file_type == "SCENE___":
+                entry = HeaderEntry(tag, size)
+            elif file_type == "PATX-SP2":
+                entry = PATXHeaderEntry(tag, size)
+            else:
+                raise NotImplementedError(f"Unimplemented file type {file_type}")
+
+            endi_tag = bs.read_string(4)
+            bs.read_int32()
+            bs.read_int32()
+            bs.read_int32()
+            bs.read_int32()
+            entry.platform = bs.read_string(2)
+
+            if type(entry) is PATXHeaderEntry:
+                bs.read_int32()
+                bs.read_int16()
+                bs.read_int32()
+                entry.pixel_format = bs.read_string(4)
+                entry.width = bs.read_uint32()
+                entry.height = bs.read_uint32()
+                bs.read_uint32()
+                entry.level_count = bs.read_uint32()
+                bs.read_int32()
+                bs.read_vec3f()
+                bs.read_int32()
+                sentinel = bs.read_int16()
+
         case "LIST":
             entry = ListEntry(tag, size)
             entry.element_type = bs.read_string(4)
@@ -135,8 +178,8 @@ def read_entry(bs: BinaryReader) -> Entry:
             entry.tri_count = bs.read_uint32()
             bs.read_int16()
 
-        case "vpos" | "vski" | "vnor" | "vtan" | "vuvs" | "vcol" | "indx":
-            entry = GEBufferEntry(tag, size, bs.read(size))
+        case "vpos" | "vski" | "vnor" | "vtan" | "vuvs" | "vcol" | "indx" | "Pixl":
+            entry = BufferEntry(tag, size, bs.read(size))
 
         case "EndG" | "Node":
             entry = Entry(tag, size)
@@ -184,23 +227,6 @@ def read_file(f: BufferedReader) -> list[Entry]:
         raise ValueError("Missing RIFF file signature")
     file_size = bs.read_uint32() + 8
     pa_tag = bs.read_string(4)
-
-    # Read sub-header
-    head_tag = bs.read_string(4)
-    header_size = bs.read_uint32()
-    header_end = bs.tell() + header_size
-    file_type = bs.read_string(8)
-    endi_tag = bs.read_string(4)
-    bs.read_uint32()
-    bs.read_uint32()
-    bs.read_uint32()
-    bs.read_uint32()
-    platform = bs.read_string(2)
-    if file_type == "SCENE___":
-        pass
-    else:
-        raise NotImplementedError(f"Unimplemented file type {file_type}")
-    bs.seek(header_end)
 
     # Read tagged entries
     entries: list[Entry] = []
