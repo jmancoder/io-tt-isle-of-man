@@ -14,8 +14,8 @@ from pathlib import Path
 
 import bpy
 from bpy_extras.io_utils import ImportHelper
-from bpy.props import FloatProperty, StringProperty
-from bpy.types import Operator, Context
+from bpy.props import CollectionProperty, FloatProperty, StringProperty
+from bpy.types import Operator, OperatorFileListElement, Context
 
 from . import reader
 from .importer import Importer
@@ -42,6 +42,16 @@ class IMPORT_OT_SCENE_p3d(Operator, ImportHelper):
         maxlen=255,
     )
 
+    directory: StringProperty(
+        subtype="DIR_PATH",
+        options={"SKIP_SAVE", "HIDDEN"},
+    )
+
+    files: CollectionProperty(
+        type=OperatorFileListElement,
+        options={"SKIP_SAVE", "HIDDEN"},
+    )
+
     bone_length: FloatProperty(
         name="Bone Length",
         description="The length of each bone.",
@@ -51,12 +61,12 @@ class IMPORT_OT_SCENE_p3d(Operator, ImportHelper):
     )
 
     def execute(self, context: Context):
-        in_path = Path(self.filepath)
-        with open(in_path, "rb") as f:
-            entries = reader.read_file(f)
-
-        data_importer = Importer(context, self.bone_length)
-        data_importer.import_root_entries(entries, in_path.stem)
+        for in_path_str in self.files:
+            in_path = Path(self.directory) / in_path_str.name
+            with open(in_path, "rb") as f:
+                entries = reader.read_file(f)
+            data_importer = Importer(context, self.bone_length)
+            data_importer.import_root_entries(entries, in_path.stem)
         return {"FINISHED"}
 
 
