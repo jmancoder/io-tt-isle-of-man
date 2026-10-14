@@ -18,7 +18,8 @@ from bpy.props import CollectionProperty, FloatProperty, StringProperty
 from bpy.types import Operator, OperatorFileListElement, Context
 
 from . import reader
-from .importer import Importer
+from .p3d_importer import P3DImporter
+from .ptx_importer import PTXImporter
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -29,7 +30,7 @@ logger.addHandler(handler)
 logger.propagate = False
 
 
-class IMPORT_OT_SCENE_p3d(Operator, ImportHelper):
+class IMPORT_OT_SCENE_p3d_ptx(Operator, ImportHelper):
     """Load a P3D/PTX file."""
 
     bl_idname = "import_scene.p3d_ptx"
@@ -62,27 +63,31 @@ class IMPORT_OT_SCENE_p3d(Operator, ImportHelper):
 
     def execute(self, context: Context):
         for in_path_str in self.files:
-            in_path = Path(self.directory) / in_path_str.name
+            in_path: Path = Path(self.directory) / in_path_str.name
             with open(in_path, "rb") as f:
-                entries = reader.read_file(f)
-            data_importer = Importer(context, self.bone_length)
-            data_importer.import_root_entries(entries, in_path.stem)
+                header_entry, root_entries = reader.read_file(f)
+            if type(header_entry) is reader.PATXHeaderEntry:
+                importer = PTXImporter(context)
+                importer.import_patx(header_entry, root_entries, in_path.stem)
+            else:
+                importer = P3DImporter(context, self.bone_length)
+                importer.import_scene(header_entry, root_entries)
         return {"FINISHED"}
 
 
 def menu_func_import(self, context):
     self.layout.operator(
-        IMPORT_OT_SCENE_p3d.bl_idname, text="TT Isle of Man (.p3d/.ptx)"
+        IMPORT_OT_SCENE_p3d_ptx.bl_idname, text="TT Isle of Man (.p3d/.ptx)"
     )
 
 
 def register():
-    bpy.utils.register_class(IMPORT_OT_SCENE_p3d)
+    bpy.utils.register_class(IMPORT_OT_SCENE_p3d_ptx)
     bpy.types.TOPBAR_MT_file_import.append(menu_func_import)
 
 
 def unregister():
-    bpy.utils.unregister_class(IMPORT_OT_SCENE_p3d)
+    bpy.utils.unregister_class(IMPORT_OT_SCENE_p3d_ptx)
     bpy.types.TOPBAR_MT_file_import.remove(menu_func_import)
 
 

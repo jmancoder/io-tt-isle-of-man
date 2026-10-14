@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from io import BufferedReader
 import logging
+from typing import cast
 
 from mathutils import Matrix
 
@@ -218,7 +219,7 @@ def read_entry(bs: BinaryReader) -> Entry:
     return entry
 
 
-def read_file(f: BufferedReader) -> list[Entry]:
+def read_file(f: BufferedReader) -> tuple[HeaderEntry, list[Entry]]:
     bs = BinaryReader(f.read())
 
     # Read file header
@@ -228,8 +229,11 @@ def read_file(f: BufferedReader) -> list[Entry]:
     file_size = bs.read_uint32() + 8
     pa_tag = bs.read_string(4)
 
-    # Read tagged entries
-    entries: list[Entry] = []
+    # Read header entry
+    header_entry = cast(HeaderEntry, read_entry(bs))
+
+    # Read root entries
+    root_entries: list[Entry] = []
     while bs.tell() < file_size:
-        entries.append(read_entry(bs))
-    return entries
+        root_entries.append(read_entry(bs))
+    return header_entry, root_entries

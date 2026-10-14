@@ -4,19 +4,17 @@ from typing import cast
 import bpy
 from bpy.types import Context, Object
 import numpy as np
-import texture2ddecoder
 
 from . import reader
 
 logger = logging.getLogger(__name__)
 
 
-class Importer:
+class P3DImporter:
     def __init__(self, context: Context, bone_length: int) -> None:
         self.context = context
         self.armature_map: dict[str, Object] = {}
         self.header_entry: reader.HeaderEntry
-        self.scene_name: str = ""
         self.bone_length = bone_length
 
     def import_empty(
@@ -105,8 +103,6 @@ class Importer:
             mesh_obj = bpy.data.objects.new("Mesh", mesh)
         self.context.collection.objects.link(mesh_obj)
         return mesh_obj
-
-    def import_image(self, pixel_buf: bytes) -> None:
         header = cast(reader.PATXHeaderEntry, self.header_entry)
         width = header.width
         height = header.height
@@ -234,39 +230,14 @@ class Importer:
                     parent_obj,
                 )
 
-            case "Surf":
-                # Import first level from surface list
-                level_list = cast(reader.ListEntry, list_entry.elements[0])
-                pixel_buf = b"".join(
-                    [
-                        pixel_entry.data
-                        for pixel_entry in cast(
-                            list[reader.BufferEntry], level_list.elements
-                        )
-                    ]
-                )
-                self.import_image(pixel_buf)
-
             case _:
                 logger.warning(
                     "Skipping unimplemented list type %s", list_entry.element_type
                 )
 
-    def import_root_entries(self, entries: list[reader.Entry], name: str) -> None:
-        self.scene_name = name
-        self.header_entry = cast(reader.HeaderEntry, entries[0])
-        if type(self.header_entry) is reader.PATXHeaderEntry:
-            # Import PTX texture(s)
-            for i in range(1, len(entries)):
-                entry = entries[i]
-                if entry.tag == "LIST":
-                    self.import_list(
-                        cast(reader.ListEntry, entry),
-                        None,
-                    )
-                else:
-                    logger.warning("Skipping entry of type %s in PATX root", entry.tag)
-        else:
-            # Import P3D scene
-            self.import_armatures(cast(reader.SkinEntry, entries[2]))
-            self.import_list(cast(reader.ListEntry, entries[1]), None)
+    def import_scene(
+        self, header_entry: reader.HeaderEntry, root_entries: list[reader.Entry]
+    ) -> None:
+        self.header_entry = header_entry
+        self.import_armatures(cast(reader.SkinEntry, root_entries[1]))
+        self.import_list(cast(reader.ListEntry, root_entries[0]), None)
