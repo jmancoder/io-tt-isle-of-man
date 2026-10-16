@@ -39,6 +39,7 @@ class P3DImporter:
     ) -> Object | None:
         # Create NumPy arrays from raw buffers
         positions = None
+        normals = None
         uvs = None
         alt_uvs = None
         triangles = []
@@ -48,6 +49,12 @@ class P3DImporter:
                     positions = np.frombuffer(
                         buffer.data, "<f4", ge_entry.vertex_count * 3
                     ).reshape(-1, 3)
+
+                case "vnor":
+                    normals = np.frombuffer(
+                        buffer.data, "<f2", ge_entry.vertex_count * 4
+                    ).astype(np.float32)
+                    normals = normals.reshape(-1, 4)[:, :3]
 
                 case "vuvs":
                     stride = len(buffer.data) // ge_entry.vertex_count
@@ -86,6 +93,10 @@ class P3DImporter:
         mesh.from_pydata(positions, [], triangles)
         mesh.validate()
         mesh.update()
+
+        # Import normals
+        if normals is not None:
+            mesh.normals_split_custom_set_from_vertices(normals)
 
         # Import UVs
         for uv_array in (uvs, alt_uvs):
