@@ -13,7 +13,11 @@ To import a texture file:
 1. Click *File->Import->TT Isle of Man Texture (.ptx)*.
 2. Select one or more PTX files.
 3. Click *Import PTX*.
-4. Create and assign materials as needed.
+
+## Notes
+- Materials are not automatically created for imported textures
+- Some meshes have two UV maps, which can be swapped using the dropdown on the top right of the UV editor. You will likely need to scroll while hovering over the top bar see the dropdown.
+- To see vertex colors, you can add a material with a color attribute node multiplied by or directly linked to the base color.
 
 ## Credits
 - texture2ddecoder is used for converting DirectX texture formats. Wheels for it are bundled with each add-on release.
