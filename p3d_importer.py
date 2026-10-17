@@ -114,23 +114,6 @@ class P3DImporter:
             mesh_obj = bpy.data.objects.new("Mesh", mesh)
         self.context.collection.objects.link(mesh_obj)
         return mesh_obj
-        header = cast(reader.PATXHeaderEntry, self.header_entry)
-        width = header.width
-        height = header.height
-        if header.pixel_format == "DXT1":
-            bgra_buf = texture2ddecoder.decode_bc1(pixel_buf, width, height)
-        elif header.pixel_format == "BC5S":
-            bgra_buf = texture2ddecoder.decode_bc5(pixel_buf, width, height)
-        else:
-            logger.error("Unimplemented pixel format %s", header.pixel_format)
-            return
-
-        rgba = np.frombuffer(bgra_buf, "<u1").reshape(-1, 4)[:, [2, 1, 0, 3]].ravel()
-        rgba = rgba.astype(np.float32) / 255.0
-
-        image = bpy.data.images.new(self.scene_name, width, height)
-        image.pixels = rgba
-        image.update()
 
     def import_nods(
         self, list_entry: reader.ListEntry, parent_obj: Object | None
