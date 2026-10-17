@@ -45,7 +45,7 @@ class P3DImporter:
         uvs = None
         alt_uvs = None
         colors = None
-        triangles = []
+        triangles = None
         for buffer in buffers:
             match buffer.tag:
                 case "vpos":
@@ -76,7 +76,7 @@ class P3DImporter:
                             / 4096.0
                         )
                         uvs = uvs.reshape(-1, 4)
-                        alt_uvs = uvs = uvs[:, 2:]
+                        alt_uvs = uvs[:, 2:]
                         uvs = uvs[:, :2]
                     elif stride == 4:
                         uvs = (
@@ -100,13 +100,24 @@ class P3DImporter:
                         buffer.data, "<u2", ge_entry.tri_count * 3
                     ).reshape(-1, 3)
 
+        # Import positions
         if positions is None:
             return None
-
-        # Create mesh from geometry
         mesh = bpy.data.meshes.new("Mesh")
-        mesh.from_pydata(positions, [], triangles)
-        mesh.validate()
+        mesh.vertices.add(len(positions))
+        mesh.vertices.foreach_set("co", positions.ravel())
+
+        # Import triangles
+        if triangles is not None:
+            mesh.loops.add(len(triangles) * 3)
+            mesh.loops.foreach_set("vertex_index", triangles.ravel())
+            mesh.polygons.add(len(triangles))
+            mesh.polygons.foreach_set(
+                "loop_start", np.arange(0, len(triangles) * 3, 3, dtype="<i4")
+            )
+            mesh.polygons.foreach_set(
+                "loop_total", np.full(len(triangles), 3, dtype="<i4")
+            )
         mesh.update()
 
         # Import normals
@@ -117,9 +128,7 @@ class P3DImporter:
         for uv_array in (uvs, alt_uvs):
             if uv_array is not None:
                 uv_layer = mesh.uv_layers.new()
-                vertex_idx_array = np.empty(len(mesh.loops), dtype=np.int32)
-                mesh.loops.foreach_get("vertex_index", vertex_idx_array)
-                uv_layer.uv.foreach_set("vector", uv_array[vertex_idx_array].ravel())
+                uv_layer.uv.foreach_set("vector", uv_array[triangles.ravel()].ravel())
 
         # Import colors
         if colors is not None:
@@ -151,7 +160,7 @@ class P3DImporter:
         for i, (weight_group, index_group) in enumerate(zip(weights, indices)):
             for weight, index in zip(weight_group, index_group):
                 if weight > 0.0:
-                    vertex_groups[index].add([i], weight, "ADD")
+                    vertex_groups[index].add([i], weight, "REPLACE")
         return mesh_obj
 
     def import_nods(
