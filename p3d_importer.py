@@ -44,6 +44,7 @@ class P3DImporter:
         normals = None
         uvs = None
         alt_uvs = None
+        colors = None
         triangles = []
         for buffer in buffers:
             match buffer.tag:
@@ -89,6 +90,11 @@ class P3DImporter:
                         logger.error("Unexpected vuvs buffer stride %d", stride)
                         continue
 
+                case "vcol":
+                    colors = np.frombuffer(
+                        buffer.data, "<u1", ge_entry.vertex_count * 4
+                    )
+
                 case "indx":
                     triangles = np.frombuffer(
                         buffer.data, "<u2", ge_entry.tri_count * 3
@@ -114,6 +120,13 @@ class P3DImporter:
                 vertex_idx_array = np.empty(len(mesh.loops), dtype=np.int32)
                 mesh.loops.foreach_get("vertex_index", vertex_idx_array)
                 uv_layer.uv.foreach_set("vector", uv_array[vertex_idx_array].ravel())
+
+        # Import colors
+        if colors is not None:
+            vertex_color_attr = mesh.color_attributes.new(
+                name="vertex_color", type="BYTE_COLOR", domain="POINT"
+            )
+            vertex_color_attr.data.foreach_set("color", colors)
 
         # Create mesh object
         if parent_obj is not None:
