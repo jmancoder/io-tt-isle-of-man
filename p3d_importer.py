@@ -2,7 +2,7 @@ import logging
 from typing import cast
 
 import bpy
-from bpy.types import Context, Object
+from bpy.types import Armature, Context, Object
 import numpy as np
 
 from . import reader
@@ -39,6 +39,8 @@ class P3DImporter:
     ) -> Object | None:
         # Create NumPy arrays from raw buffers
         positions = None
+        weights = None
+        indices = None
         normals = None
         uvs = None
         alt_uvs = None
@@ -49,6 +51,13 @@ class P3DImporter:
                     positions = np.frombuffer(
                         buffer.data, "<f4", ge_entry.vertex_count * 3
                     ).reshape(-1, 3)
+
+                case "vski":
+                    skin_entries = np.frombuffer(
+                        buffer.data, "<u1", ge_entry.vertex_count * 8
+                    ).reshape(-1, 8)
+                    weights = skin_entries[:, :4].astype("<f4") / 255.0
+                    indices = skin_entries[:, 4:]
 
                 case "vnor":
                     normals = np.frombuffer(
@@ -106,13 +115,30 @@ class P3DImporter:
                 mesh.loops.foreach_get("vertex_index", vertex_idx_array)
                 uv_layer.uv.foreach_set("vector", uv_array[vertex_idx_array].ravel())
 
-        # Create object
+        # Create mesh object
         if parent_obj is not None:
             mesh_obj = bpy.data.objects.new(parent_obj.name + "_Mesh", mesh)
             mesh_obj.parent = parent_obj
         else:
             mesh_obj = bpy.data.objects.new("Mesh", mesh)
         self.context.collection.objects.link(mesh_obj)
+
+        # Add armature modifier and create vertex groups
+        if parent_obj is None or type(parent_obj.data) is not Armature:
+            return mesh_obj
+        modifier = mesh_obj.modifiers.new("Armature", "ARMATURE")
+        modifier.object = parent_obj
+        vertex_groups = [
+            mesh_obj.vertex_groups.new(name=bone.name) for bone in parent_obj.data.bones
+        ]
+
+        # Import skin data
+        if weights is None or indices is None:
+            return mesh_obj
+        for i, (weight_group, index_group) in enumerate(zip(weights, indices)):
+            for weight, index in zip(weight_group, index_group):
+                if weight > 0.0:
+                    vertex_groups[index].add([i], weight, "ADD")
         return mesh_obj
 
     def import_nods(
