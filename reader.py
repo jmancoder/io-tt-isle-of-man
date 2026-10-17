@@ -80,6 +80,18 @@ class SkinEntry(Entry):
     skin_meshes: list[SkinMesh] = field(default_factory=list)
 
 
+@dataclass
+class LODsEntry(Entry):
+    unk_int16: int = 0
+    distances: list[float] = field(default_factory=list)
+
+
+@dataclass
+class RTableEntry(Entry):
+    unk_int16: int = 0
+    names: list[str] = field(default_factory=list)
+
+
 def read_entry(bs: BinaryReader) -> Entry:
     start_off = bs.tell()
     tag = bs.read_string(4)
@@ -210,6 +222,20 @@ def read_entry(bs: BinaryReader) -> Entry:
                 entry.skin_meshes.append(skin_mesh)
                 bs.read_int16()
             bs.read_int16()
+
+        case "LODs":
+            entry = LODsEntry(tag, size)
+            entry.unk_int16 = bs.read_int16()
+            lod_count = bs.read_uint32()
+            entry.distances = [bs.read_float() for _ in range(lod_count)]
+
+        case "RTbl":
+            entry = RTableEntry(tag, size)
+            entry.unk_int16 = bs.read_int16()
+            name_count = bs.read_uint32()
+            for _ in range(name_count):
+                name_len = bs.read_uint32()
+                entry.names.append(bs.read_string(name_len))
 
         case _:
             logger.warning("Skipping unimplemented tag %s at 0x%X", tag, start_off)
