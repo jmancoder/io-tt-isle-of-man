@@ -118,7 +118,7 @@ class P3DImporter:
             mesh.polygons.foreach_set(
                 "loop_total", np.full(len(triangles), 3, dtype="<i4")
             )
-        mesh.update()
+        mesh.update(calc_edges=True)
 
         # Import normals
         if normals is not None:
