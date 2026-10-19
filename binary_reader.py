@@ -57,12 +57,8 @@ class BinaryReader(BytesIO):
     def read_vec4f(self) -> tuple[float, float, float, float]:
         return struct.unpack(self.endian_symbol + "4f", self.read(16))
 
-    def read_rgba(self) -> tuple[float, float, float, float]:
-        r, g, b, a = self.read_vec4B()
-        return (r / 255, g / 255, b / 255, a / 255)
-
     def read_matrix_4x4(self) -> Matrix:
         return Matrix([self.read_vec4f() for _ in range(4)]).transposed()
 
-    def read_string(self, length: int, null_term=False) -> str:
+    def read_string(self, length: int) -> str:
         return self.read(length).decode(errors="ignore")
