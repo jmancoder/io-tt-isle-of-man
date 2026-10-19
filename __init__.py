@@ -18,7 +18,7 @@ from bpy_extras.io_utils import ImportHelper
 from bpy.props import CollectionProperty, FloatProperty, StringProperty
 from bpy.types import Operator, OperatorFileListElement, Context
 
-from . import reader
+from . import riff_reader
 from .p3d_importer import P3DImporter
 from .ptx_importer import PTXImporter
 
@@ -66,7 +66,7 @@ class IMPORT_OT_SCENE_p3d(Operator, ImportHelper):
         for in_path_str in self.files:
             in_path: Path = Path(self.directory) / in_path_str.name
             with open(in_path, "rb") as f:
-                header_entry, root_entries = reader.read_file(f)
+                header_entry, root_entries = riff_reader.read_file(f)
 
             importer = P3DImporter(context, self.bone_length)
             importer.import_scene(header_entry, root_entries)
@@ -100,11 +100,13 @@ class IMPORT_OT_IMAGE_ptx(Operator, ImportHelper):
         for in_path_str in self.files:
             in_path: Path = Path(self.directory) / in_path_str.name
             with open(in_path, "rb") as f:
-                header_entry, root_entries = reader.read_file(f)
+                header_entry, root_entries = riff_reader.read_file(f)
 
             importer = PTXImporter(context)
             importer.import_patx(
-                cast(reader.PATXHeaderEntry, header_entry), root_entries, in_path.stem
+                cast(riff_reader.PATXHeaderEntry, header_entry),
+                root_entries,
+                in_path.stem,
             )
         return {"FINISHED"}
 

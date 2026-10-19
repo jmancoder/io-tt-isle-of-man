@@ -6,7 +6,7 @@ from bpy.types import Context
 import numpy as np
 import texture2ddecoder
 
-from . import reader
+from . import riff_classes as riff
 
 logger = logging.getLogger(__name__)
 
@@ -14,11 +14,11 @@ logger = logging.getLogger(__name__)
 class PTXImporter:
     def __init__(self, context: Context) -> None:
         self.context = context
-        self.header_entry: reader.PATXHeaderEntry
+        self.header_entry: riff.PATXHeaderEntry
         self.scene_name: str = ""
 
     def import_image(self, pixel_buf: bytes) -> None:
-        header = cast(reader.PATXHeaderEntry, self.header_entry)
+        header = cast(riff.PATXHeaderEntry, self.header_entry)
         width = header.width
         height = header.height
         if header.pixel_format == "DXT1":
@@ -36,32 +36,32 @@ class PTXImporter:
         image.pixels = rgba
         image.update()
 
-    def import_list(self, list_entry: reader.ListEntry) -> None:
+    def import_list(self, list_entry: riff.ListEntry) -> None:
         if list_entry.element_type != "Surf":
             logger.warning(
                 "Skipping unimplemented list type %s", list_entry.element_type
             )
 
         # Import first level from surface list
-        level_list = cast(reader.ListEntry, list_entry.elements[0])
+        level_list = cast(riff.ListEntry, list_entry.elements[0])
         pixel_buf = b"".join(
             [
                 pixel_entry.data
-                for pixel_entry in cast(list[reader.BufferEntry], level_list.elements)
+                for pixel_entry in cast(list[riff.BufferEntry], level_list.elements)
             ]
         )
         self.import_image(pixel_buf)
 
     def import_patx(
         self,
-        header_entry: reader.PATXHeaderEntry,
-        root_entries: list[reader.Entry],
+        header_entry: riff.PATXHeaderEntry,
+        root_entries: list[riff.Entry],
         name: str,
     ) -> None:
         self.scene_name = name
         self.header_entry = header_entry
         for entry in root_entries:
             if entry.tag == "LIST":
-                self.import_list(cast(reader.ListEntry, entry))
+                self.import_list(cast(riff.ListEntry, entry))
             else:
                 logger.warning("Skipping entry of type %s in PATX root", entry.tag)

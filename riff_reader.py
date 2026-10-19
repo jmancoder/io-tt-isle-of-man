@@ -1,98 +1,14 @@
-from dataclasses import dataclass, field
 from io import BufferedReader
 import logging
 from typing import cast
 
-from mathutils import Matrix
-
 from .binary_reader import BinaryReader
+from . import riff_classes as riff
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class Entry:
-    tag: str
-    size: int
-
-
-@dataclass
-class HeaderEntry(Entry):
-    platform: str = "PC"
-
-
-@dataclass
-class PATXHeaderEntry(HeaderEntry):
-    pixel_format: str = "DXT1"
-    width: int = 1
-    height: int = 1
-    level_count: int = 0
-
-
-@dataclass
-class ListEntry(Entry):
-    element_type: str = ""
-    elements: list[Entry] = field(default_factory=list)
-
-
-@dataclass
-class NodeHeEntry(Entry):
-    name: str = ""
-    transform: Matrix = Matrix()
-    child_count: int = 0
-
-
-@dataclass
-class MeshEntry(Entry):
-    bounds_min: tuple[float, float, float] = (0.0, 0.0, 0.0)
-    bounds_max: tuple[float, float, float] = (0.0, 0.0, 0.0)
-
-
-@dataclass
-class GeometryEntry(Entry): ...
-
-
-@dataclass
-class GEEntry(Entry):
-    vertex_count: int = 0
-    tri_count: int = 0
-
-
-@dataclass
-class Bone:
-    name: str = ""
-    transform: Matrix = Matrix()
-
-
-@dataclass
-class SkinMesh:
-    name: str = ""
-    bones: list[Bone] = field(default_factory=list)
-
-
-@dataclass
-class BufferEntry(Entry):
-    data: bytes
-
-
-@dataclass
-class SkinEntry(Entry):
-    skin_meshes: list[SkinMesh] = field(default_factory=list)
-
-
-@dataclass
-class LODsEntry(Entry):
-    unk_int16: int = 0
-    distances: list[float] = field(default_factory=list)
-
-
-@dataclass
-class RTableEntry(Entry):
-    unk_int16: int = 0
-    names: list[str] = field(default_factory=list)
-
-
-def read_entry(bs: BinaryReader) -> Entry:
+def read_entry(bs: BinaryReader) -> riff.Entry:
     start_off = bs.tell()
     tag = bs.read_string(4)
     size = bs.read_uint32()
@@ -103,9 +19,9 @@ def read_entry(bs: BinaryReader) -> Entry:
         case "Head":
             file_type = bs.read_string(8)
             if file_type == "SCENE___":
-                entry = HeaderEntry(tag, size)
+                entry = riff.HeaderEntry(tag, size)
             elif file_type == "PATX-SP2":
-                entry = PATXHeaderEntry(tag, size)
+                entry = riff.PATXHeaderEntry(tag, size)
             else:
                 raise NotImplementedError(f"Unimplemented file type {file_type}")
 
@@ -116,7 +32,7 @@ def read_entry(bs: BinaryReader) -> Entry:
             bs.read_int32()
             entry.platform = bs.read_string(2)
 
-            if type(entry) is PATXHeaderEntry:
+            if type(entry) is riff.PATXHeaderEntry:
                 bs.read_int32()
                 bs.read_int16()
                 bs.read_int32()
@@ -131,7 +47,7 @@ def read_entry(bs: BinaryReader) -> Entry:
                 sentinel = bs.read_int16()
 
         case "LIST":
-            entry = ListEntry(tag, size)
+            entry = riff.ListEntry(tag, size)
             entry.element_type = bs.read_string(4)
             while bs.tell() < end_off:
                 entry.elements.append(read_entry(bs))
@@ -143,7 +59,7 @@ def read_entry(bs: BinaryReader) -> Entry:
             )
 
         case "NoHe":
-            entry = NodeHeEntry(tag, size)
+            entry = riff.NodeHeEntry(tag, size)
             bs.read_int16()
             name_len = bs.read_uint32()
             entry.name = bs.read_string(name_len)
@@ -155,7 +71,7 @@ def read_entry(bs: BinaryReader) -> Entry:
             sentinel = bs.read_int16()
 
         case "Mesh":
-            entry = MeshEntry(tag, size)
+            entry = riff.MeshEntry(tag, size)
             bs.read_int16()
             bs.read_uint8()
             bs.read_int16()
@@ -174,7 +90,7 @@ def read_entry(bs: BinaryReader) -> Entry:
             bs.read_uint8()
 
         case "Geom":
-            entry = GeometryEntry(tag, size)
+            entry = riff.GeometryEntry(tag, size)
             bs.read_int16()
             bs.read_uint8()
             bs.read_uint8()
@@ -185,24 +101,24 @@ def read_entry(bs: BinaryReader) -> Entry:
             bs.read_uint8()
 
         case "SuGe":
-            entry = GEEntry(tag, size)
+            entry = riff.GEEntry(tag, size)
             bs.read_int16()
             entry.vertex_count = bs.read_uint32()
             entry.tri_count = bs.read_uint32()
             bs.read_int16()
 
         case "vpos" | "vski" | "vnor" | "vtan" | "vuvs" | "vcol" | "indx" | "Pixl":
-            entry = BufferEntry(tag, size, bs.read(size))
+            entry = riff.BufferEntry(tag, size, bs.read(size))
 
         case "EndG" | "Node":
-            entry = Entry(tag, size)
+            entry = riff.Entry(tag, size)
 
         case "Skin":
-            entry = SkinEntry(tag, size)
+            entry = riff.SkinEntry(tag, size)
             bs.read_int16()
             skin_mesh_count = bs.read_uint32()
             for _ in range(skin_mesh_count):
-                skin_mesh = SkinMesh()
+                skin_mesh = riff.SkinMesh()
                 bs.read_int16()
                 name_len = bs.read_uint32()
                 skin_mesh.name = bs.read_string(name_len)
@@ -211,7 +127,7 @@ def read_entry(bs: BinaryReader) -> Entry:
 
                 bone_count = bs.read_uint32()
                 for _ in range(bone_count):
-                    bone = Bone()
+                    bone = riff.Bone()
                     bs.read_int16()
                     name_len = bs.read_uint32()
                     bone.name = bs.read_string(name_len)
@@ -224,13 +140,13 @@ def read_entry(bs: BinaryReader) -> Entry:
             bs.read_int16()
 
         case "LODs":
-            entry = LODsEntry(tag, size)
+            entry = riff.LODsEntry(tag, size)
             entry.unk_int16 = bs.read_int16()
             lod_count = bs.read_uint32()
             entry.distances = [bs.read_float() for _ in range(lod_count)]
 
         case "RTbl":
-            entry = RTableEntry(tag, size)
+            entry = riff.RTableEntry(tag, size)
             entry.unk_int16 = bs.read_int16()
             name_count = bs.read_uint32()
             for _ in range(name_count):
@@ -239,13 +155,13 @@ def read_entry(bs: BinaryReader) -> Entry:
 
         case _:
             logger.warning("Skipping unimplemented tag %s at 0x%X", tag, start_off)
-            entry = Entry(tag, size)
+            entry = riff.Entry(tag, size)
 
     bs.seek(end_off)
     return entry
 
 
-def read_file(f: BufferedReader) -> tuple[HeaderEntry, list[Entry]]:
+def read_file(f: BufferedReader) -> tuple[riff.HeaderEntry, list[riff.Entry]]:
     bs = BinaryReader(f.read())
 
     # Read file header
@@ -256,10 +172,10 @@ def read_file(f: BufferedReader) -> tuple[HeaderEntry, list[Entry]]:
     pa_tag = bs.read_string(4)
 
     # Read header entry
-    header_entry = cast(HeaderEntry, read_entry(bs))
+    header_entry = cast(riff.HeaderEntry, read_entry(bs))
 
     # Read root entries
-    root_entries: list[Entry] = []
+    root_entries: list[riff.Entry] = []
     while bs.tell() < file_size:
         root_entries.append(read_entry(bs))
     return header_entry, root_entries

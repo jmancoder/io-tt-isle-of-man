@@ -5,7 +5,7 @@ import bpy
 from bpy.types import Armature, Context, Object
 import numpy as np
 
-from . import reader
+from . import riff_classes as riff
 
 logger = logging.getLogger(__name__)
 
@@ -14,11 +14,11 @@ class P3DImporter:
     def __init__(self, context: Context, bone_length: int) -> None:
         self.context = context
         self.armature_map: dict[str, Object] = {}
-        self.header_entry: reader.HeaderEntry
+        self.header_entry: riff.HeaderEntry
         self.bone_length = bone_length
 
     def import_empty(
-        self, node_entry: reader.NodeHeEntry, parent_obj: Object | None
+        self, node_entry: riff.NodeHeEntry, parent_obj: Object | None
     ) -> Object:
         # Use existing armature if possible, else create an empty object
         node_obj = self.armature_map.get(node_entry.name)
@@ -33,8 +33,8 @@ class P3DImporter:
 
     def import_mesh(
         self,
-        ge_entry: reader.GEEntry,
-        buffers: list[reader.BufferEntry],
+        ge_entry: riff.GEEntry,
+        buffers: list[riff.BufferEntry],
         parent_obj: Object | None,
     ) -> Object | None:
         # Create NumPy arrays from raw buffers
@@ -164,24 +164,24 @@ class P3DImporter:
         return mesh_obj
 
     def import_nods(
-        self, list_entry: reader.ListEntry, parent_obj: Object | None
+        self, list_entry: riff.ListEntry, parent_obj: Object | None
     ) -> None:
         node_obj = parent_obj
         for entry in list_entry.elements:
             match entry.tag:
                 case "NoHe":
                     node_obj = self.import_empty(
-                        cast(reader.NodeHeEntry, entry), parent_obj
+                        cast(riff.NodeHeEntry, entry), parent_obj
                     )
                 case "Node":
                     # Empty entry; data is in previous NoHe entry
                     pass
                 case "LIST":
-                    self.import_list(cast(reader.ListEntry, entry), node_obj)
+                    self.import_list(cast(riff.ListEntry, entry), node_obj)
                 case _:
                     logger.warning("Skipping %s entry in node list", entry.tag)
 
-    def import_armatures(self, skin_entry: reader.SkinEntry) -> None:
+    def import_armatures(self, skin_entry: riff.SkinEntry) -> None:
         if skin_entry.tag != "Skin":
             raise TypeError(
                 "Expected Skin tag on SkinEntry object; got %s", skin_entry.tag
@@ -203,7 +203,7 @@ class P3DImporter:
 
     def import_list(
         self,
-        list_entry: reader.ListEntry,
+        list_entry: riff.ListEntry,
         parent_obj: Object | None,
     ) -> None:
         if list_entry.tag != "LIST":
@@ -232,7 +232,7 @@ class P3DImporter:
                     )
                     return
                 self.import_list(
-                    cast(reader.ListEntry, geom_list_entry),
+                    cast(riff.ListEntry, geom_list_entry),
                     parent_obj,
                 )
 
@@ -253,7 +253,7 @@ class P3DImporter:
                     )
                     return
                 self.import_list(
-                    cast(reader.ListEntry, ge_list_entry),
+                    cast(riff.ListEntry, ge_list_entry),
                     parent_obj,
                 )
 
@@ -267,8 +267,8 @@ class P3DImporter:
                     )
                     return
                 self.import_mesh(
-                    cast(reader.GEEntry, ge_entry),
-                    cast(list[reader.BufferEntry], list_entry.elements[1:]),
+                    cast(riff.GEEntry, ge_entry),
+                    cast(list[riff.BufferEntry], list_entry.elements[1:]),
                     parent_obj,
                 )
 
@@ -278,8 +278,10 @@ class P3DImporter:
                 )
 
     def import_scene(
-        self, header_entry: reader.HeaderEntry, root_entries: list[reader.Entry]
+        self,
+        header_entry: riff.HeaderEntry,
+        root_entries: list[riff.Entry],
     ) -> None:
         self.header_entry = header_entry
-        self.import_armatures(cast(reader.SkinEntry, root_entries[1]))
-        self.import_list(cast(reader.ListEntry, root_entries[0]), None)
+        self.import_armatures(cast(riff.SkinEntry, root_entries[1]))
+        self.import_list(cast(riff.ListEntry, root_entries[0]), None)
