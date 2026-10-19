@@ -1,5 +1,5 @@
-from io import BufferedReader
 import logging
+from pathlib import Path
 from typing import cast
 
 from .binary_reader import BinaryReader
@@ -161,8 +161,9 @@ def read_entry(bs: BinaryReader) -> riff.Entry:
     return entry
 
 
-def read_file(f: BufferedReader) -> tuple[riff.HeaderEntry, list[riff.Entry]]:
-    bs = BinaryReader(f.read())
+def read_file(path: Path) -> tuple[riff.HeaderEntry, list[riff.Entry]]:
+    with open(path, "rb") as f:
+        bs = BinaryReader(f.read())
 
     # Read file header
     sig = bs.read_string(4)

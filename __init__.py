@@ -18,6 +18,7 @@ from bpy_extras.io_utils import ImportHelper
 from bpy.props import CollectionProperty, FloatProperty, StringProperty
 from bpy.types import Operator, OperatorFileListElement, Context
 
+from . import riff_classes as riff
 from . import riff_reader
 from .p3d_importer import P3DImporter
 from .ptx_importer import PTXImporter
@@ -63,10 +64,9 @@ class IMPORT_OT_SCENE_p3d(Operator, ImportHelper):
     )
 
     def execute(self, context: Context):
-        for in_path_str in self.files:
-            in_path: Path = Path(self.directory) / in_path_str.name
-            with open(in_path, "rb") as f:
-                header_entry, root_entries = riff_reader.read_file(f)
+        for file_elem in self.files:
+            in_path: Path = Path(self.directory) / file_elem.name
+            header_entry, root_entries = riff_reader.read_file(in_path)
 
             importer = P3DImporter(context, self.bone_length)
             importer.import_scene(header_entry, root_entries)
@@ -97,14 +97,13 @@ class IMPORT_OT_IMAGE_ptx(Operator, ImportHelper):
     )
 
     def execute(self, context: Context):
-        for in_path_str in self.files:
-            in_path: Path = Path(self.directory) / in_path_str.name
-            with open(in_path, "rb") as f:
-                header_entry, root_entries = riff_reader.read_file(f)
+        for file_elem in self.files:
+            in_path: Path = Path(self.directory) / file_elem.name
+            header_entry, root_entries = riff_reader.read_file(in_path)
 
             importer = PTXImporter(context)
             importer.import_patx(
-                cast(riff_reader.PATXHeaderEntry, header_entry),
+                cast(riff.PATXHeaderEntry, header_entry),
                 root_entries,
                 in_path.stem,
             )

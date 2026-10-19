@@ -63,7 +63,7 @@ class P3DImporter:
                 case "vnor":
                     normals = np.frombuffer(
                         buffer.data, "<f2", ge_entry.vertex_count * 4
-                    ).astype(np.float32)
+                    ).astype("<f4")
                     normals = normals.reshape(-1, 4)[:, :3]
 
                 case "vuvs":
